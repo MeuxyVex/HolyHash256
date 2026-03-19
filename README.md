@@ -1,6 +1,6 @@
 # Hashage simple en HolyC
 
-Programme en **HolyC et en C** qui lit un texte, calcule un hash simple, puis l'affiche en **hexadécimal**.
+Programme en **HolyC** qui lit un texte, calcule un hash simple, puis l'affiche en **hexadécimal**.
 
 ## Ce que fait le programme
 
