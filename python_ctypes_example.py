@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 DEFAULT_TEXT = "bonjour tout le monde"
-DEFAULT_LIB_NAMES = ("libholyc_hash.so", "a.out", "a.so")
+DEFAULT_LIB_NAMES = ("libholyc_hash.so", "a.so")
 
 
 def candidate_library_paths(explicit_path: str | None = None) -> list[Path]:
@@ -34,21 +34,41 @@ def candidate_library_paths(explicit_path: str | None = None) -> list[Path]:
     return candidates
 
 
+def looks_like_shared_library(path: Path) -> bool:
+    return path.suffix == ".so" or ".so." in path.name
+
+
 def load_library(explicit_path: str | None = None) -> ctypes.CDLL:
     tried: list[Path] = []
+    load_errors: list[str] = []
 
     for candidate in candidate_library_paths(explicit_path):
         resolved = candidate.resolve()
         tried.append(resolved)
-        if resolved.exists():
+
+        if not resolved.exists():
+            continue
+
+        if not looks_like_shared_library(resolved):
+            load_errors.append(f"{resolved} (ignore: fichier existant mais pas une bibliotheque .so)")
+            continue
+
+        try:
             return ctypes.CDLL(str(resolved))
+        except OSError as exc:
+            load_errors.append(f"{resolved} ({exc})")
 
     tried_str = "\n - ".join(str(path) for path in tried)
+    details = ""
+    if load_errors:
+        details = "\nErreurs de chargement :\n - " + "\n - ".join(load_errors)
+
     raise FileNotFoundError(
-        "Aucune bibliotheque native trouvee.\n"
-        "Compile ou genere d'abord une librairie partagee HolyC, puis passe son chemin en argument\n"
+        "Aucune bibliotheque native chargeable trouvee.\n"
+        "Compile ou genere d'abord une librairie partagee HolyC (.so), puis passe son chemin en argument\n"
         "ou via HOLYC_HASH_LIB.\n"
         f"Chemins tries :\n - {tried_str}"
+        f"{details}"
     )
 
 

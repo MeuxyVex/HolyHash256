@@ -72,15 +72,16 @@ Attendu :
 
 ### Integration Python via `ctypes`
 
-Un exemple plus robuste est fourni dans `python_ctypes_example.py` : il accepte un chemin de bibliotheque en argument, regarde aussi `HOLYC_HASH_LIB`, puis affiche une erreur claire si aucun fichier partage n'est trouve.
+Un exemple plus robuste est fourni dans `python_ctypes_example.py` : il accepte un chemin de bibliotheque en argument, regarde aussi `HOLYC_HASH_LIB`, ignore les fichiers qui ne ressemblent pas a des `.so`, puis affiche une erreur claire si aucune bibliotheque chargeable n'est trouvee.
 
 Principe :
 
 1. charger une future bibliotheque partagee (ex. `libholyc_hash.so`) ;
 2. accepter eventuellement son chemin via argument CLI ou `HOLYC_HASH_LIB` ;
-3. declarer la signature de `HashTextHex` ;
-4. envoyer un `bytes` UTF-8 ;
-5. recuperer le buffer de sortie hexadecimal.
+3. ignorer les binaires executables qui ne sont pas des bibliotheques partagees ;
+4. declarer la signature de `HashTextHex` ;
+5. envoyer un `bytes` UTF-8 ;
+6. recuperer le buffer de sortie hexadecimal.
 
 Extrait Python :
 
@@ -109,7 +110,7 @@ print(out.value.decode("ascii"))
 ## Fichiers
 
 - `hashage.HC` : implementation du hash, API reutilisable et CLI ;
-- `python_ctypes_example.py` : exemple Python avec recherche de bibliotheque, chemin explicite et message d'erreur utile si le `.so` est absent.
+- `python_ctypes_example.py` : exemple Python avec recherche de bibliotheque, filtrage des faux positifs (comme un `a.out` executable) et message d'erreur utile si aucun `.so` valide n'est disponible.
 
 ## Pistes suivantes
 
