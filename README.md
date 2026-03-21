@@ -1,96 +1,117 @@
 # Hashage simple en HolyC
 
-Programme en **HolyC** qui lit un texte, calcule un hash simple, puis l'affiche en **hexadécimal**.
+Petit projet en **HolyC** qui calcule un **hash maison 256 bits inspire de SHA-256**.
 
-## Ce que fait le programme
+Le projet est maintenant organise pour deux usages :
 
-- demande un texte à l'utilisateur
-- lit jusqu'à **255 caractères max**
-- calcule un hash avec la formule :
+- **CLI** : lancer un binaire et saisir une ligne de texte ;
+- **bibliotheque native** : appeler des fonctions reutilisables depuis un autre langage, par exemple **Python avec `ctypes`**.
 
+## API exposee
 
-hash = hash * 31 + *s;
+Le fichier principal `hashage.HC` contient maintenant trois fonctions utiles pour une integration externe :
 
+- `HashTextRaw(U8 *s, U32 digest[8])` : calcule le digest brut sur 8 mots de 32 bits ;
+- `DigestToHex(U32 digest[8], U8 *hex_out)` : convertit le digest brut en 64 caracteres hexadecimaux ;
+- `HashTextHex(U8 *s, U8 *hex_out)` : calcule directement le hash hexadecimal dans un buffer de **65 octets** (`64` caracteres + `\0`).
 
-- affiche le résultat en hexadécimal
+L'algorithme reste un **hash maison non standard** : il est **inspire de SHA-256**, mais il **n'est pas compatible SHA-256** et ne doit pas etre presente comme un hash cryptographique officiel.
 
-## Fichier principal
+## Structure de l'algorithme
 
-- hashage.HC
+Le coeur du melange repose sur :
 
-## Prérequis
+- un etat de **8 mots de 32 bits** ;
+- des rotations et XOR ;
+- les fonctions `Ch` et `Maj` ;
+- un message schedule sur **64 rounds** ;
+- un padding de type SHA-like sur blocs de **64 octets**.
 
-Le programme a été pensé pour **Linux, distro ubuntu** avec **holyc-lang** (hcc).
+## Utilisation en CLI
 
-Tu dois avoir :
+### Compiler
 
-- hcc installé
-- un système Linux compatible
-
-## Compiler le programme
-
-Dans le dossier du projet :
-
-
-hashage.hc
-
-readme
-
-
-Cette commande compile le programme et génère en général un exécutable nommé :
-
+```bash
 hcc hashage.HC
+```
 
-## Exécuter le programme
+### Executer
 
-Après compilation, pour le lancer :
-
-
+```bash
 ./a.out
+```
 
+### Exemple
 
-## Utilisation
+```text
+Texte a hash : bonjour tout le monde
+Texte lu : bonjour tout le monde
+Algorithme : Hash maison 256 bits inspire de SHA-256
+API lib : HashTextRaw / HashTextHex / DigestToHex
+Longueur max supportee : 255 caracteres
+Hash (hex) : 64-caracteres-hexadecimaux
+```
 
+## Utilisation comme bibliotheque native
 
-Quand on lance le programme actuel on entre du texte normal et on en ressort avec un texte en hexa
+L'objectif de cette version est de rendre l'algo appelable depuis un autre langage sans passer par `scanf` ni parser une sortie console complete.
 
-## Limitation actuelle
+### Fonction la plus pratique
 
-Le programme utilise :
+Pour une integration externe, la fonction la plus simple est :
 
+```c
+U0 HashTextHex(U8 *s, U8 *hex_out)
+```
 
-scanf("%255s", texte);
+Attendu :
 
+- `s` pointe vers une chaine terminee par `\0` ;
+- `hex_out` pointe vers un buffer de **65 octets minimum** ;
+- la fonction ecrit un hash hexadecimal en majuscules puis un terminateur nul.
 
-Donc :
+### Integration Python via `ctypes`
 
-- la lecture est limitée à **255 caractères**
-- la saisie s'arrête au **premier espace**
+Un exemple plus robuste est fourni dans `python_ctypes_example.py` : il prefere une bibliotheque partagee `.so` via `ctypes`, mais peut aussi utiliser un executable compile (souvent `a.out`) en mode fallback via `subprocess`.
 
-Exemple :
+Principe :
 
-- hello → fonctionne
-- hello world → seule la partie `hello` sera lue
+1. essayer d'abord de charger une bibliotheque partagee (ex. `libholyc_hash.so`) ;
+2. accepter eventuellement son chemin via argument CLI ou `HOLYC_HASH_LIB` ;
+3. si aucune `.so` n'est disponible, chercher un executable HolyC (ex. `a.out`) via argument CLI ou `HOLYC_HASH_EXE` ;
+4. en mode lib, declarer la signature de `HashTextHex` ;
+5. en mode executable, envoyer le texte sur `stdin` et parser la ligne `Hash (hex) : ...` ;
+6. recuperer le hash hexadecimal final.
 
-## Fonctionnement du hash
+Extrait Python :
 
-La fonction principale de hashage est :
+```python
+import ctypes
 
+# mode .so : python3 python_ctypes_example.py "bonjour" /chemin/vers/libholyc_hash.so
+# mode executable : python3 python_ctypes_example.py "bonjour" ./a.out
+# ou via variables HOLYC_HASH_LIB / HOLYC_HASH_EXE
 
-U64 HashStr(U8 *s)
+hash_text, backend = build_hasher()
+print(hash_text("bonjour tout le monde"), backend)
+```
 
+## Limites actuelles
 
-Elle :
+- le binaire CLI lit toujours une seule ligne avec `scanf(" %255[^\n]", texte)` ;
+- l'entree CLI est limitee a **255 caracteres** ;
+- la partie **bibliotheque** est prete au niveau API, mais la commande exacte pour produire une `.so` depend encore de ton environnement `hcc` Ubuntu ;
+- si tu n'as qu'un `a.out`, le script Python peut maintenant l'utiliser comme fallback via `subprocess`, tant que la sortie conserve la ligne `Hash (hex) : ...` ;
+- comme il s'agit d'un hash maison, il faut ajouter des **tests de reference** si tu veux garantir la compatibilite entre HolyC et Python.
 
-1. prend une chaîne de caractères en entrée
-2. parcourt la chaîne caractère par caractère
-3. mélange les valeurs dans une variable `U64`
-4. renvoie le hash final
+## Fichiers
 
-Le hash retourné est stocké sur **64 bits**.
+- `hashage.HC` : implementation du hash, API reutilisable et CLI ;
+- `python_ctypes_example.py` : exemple Python hybride, avec priorite a la `.so` via `ctypes`, puis fallback sur un executable CLI (comme `a.out`).
 
-## Remarque
+## Pistes suivantes
 
-Le projet est **non fini** et a pour but de comparer un hashage sha256 à un hashage en holyc fait maison
-
-
+- ajouter des vecteurs de test fixes ;
+- produire un vrai build de bibliotheque partagee si `hcc` le permet ;
+- ajouter un petit wrapper Python plus ergonomique ;
+- envisager ensuite un package `pip` qui charge la lib native.
