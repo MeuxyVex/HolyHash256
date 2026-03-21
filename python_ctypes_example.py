@@ -138,16 +138,19 @@ def build_cli_hasher(executable: Path):
             input=text + "\n",
             text=True,
             capture_output=True,
-            check=True,
+            check=False,
         )
 
         for line in completed.stdout.splitlines():
-            if line.startswith(HASH_PREFIX):
-                return line[len(HASH_PREFIX) :].strip()
+            marker = line.find(HASH_PREFIX)
+            if marker != -1:
+                return line[marker + len(HASH_PREFIX) :].strip()
 
         raise RuntimeError(
-            "Sortie CLI inattendue : impossible de trouver la ligne de hash.\n"
-            f"Sortie recue :\n{completed.stdout}"
+            "Execution CLI echouee ou sortie inattendue : impossible de trouver la ligne de hash.\n"
+            f"Code retour : {completed.returncode}\n"
+            f"Stdout :\n{completed.stdout}\n"
+            f"Stderr :\n{completed.stderr}"
         )
 
     return hash_text
@@ -179,7 +182,13 @@ def main(argv: list[str]) -> int:
         return 1
 
     print(f"Backend utilise : {backend}", file=sys.stderr)
-    print(hash_text(text))
+    try:
+        result = hash_text(text)
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    print(result)
     return 0
 
 

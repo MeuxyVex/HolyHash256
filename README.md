@@ -102,6 +102,7 @@ print(hash_text("bonjour tout le monde"), backend)
 - l'entree CLI est limitee a **255 caracteres** ;
 - la partie **bibliotheque** est prete au niveau API, mais la commande exacte pour produire une `.so` depend encore de ton environnement `hcc` Ubuntu ;
 - si tu n'as qu'un `a.out`, le script Python peut maintenant l'utiliser comme fallback via `subprocess`, tant que la sortie conserve la ligne `Hash (hex) : ...` ;
+- si l'executable retourne un code non nul, le script n'explose plus sur une traceback Python : il affiche maintenant un diagnostic clair avec le code retour, `stdout` et `stderr` ;
 - comme il s'agit d'un hash maison, il faut ajouter des **tests de reference** si tu veux garantir la compatibilite entre HolyC et Python.
 
 ## Fichiers
